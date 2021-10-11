@@ -1,0 +1,14 @@
+body{
+    background: #3e324f;
+}
+#cvs{
+    background-color: #18a456;
+    width: 700px;
+    height: 700px;
+    image-rendering: pixelated;
+}   
+*{
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
