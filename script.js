@@ -6,6 +6,14 @@ import {
 } from './asset/data.js';
 const canvas = document.getElementById('cvs');
 const ctx = canvas.getContext('2d');
+const centerX = canvas.width/2;
+const centerY = canvas.height/2;
+const asset = {
+    background: {},
+    chars: {},
+    guns: {},
+    bullets: {}
+}
 const MOUSE = {
     x: 175,
     y: 175,
@@ -14,26 +22,25 @@ const MOUSE = {
         this.y = e.clientY / 2; 
     }
 }
-const asset = {
-    chars: {},
-    guns: {},
-    bullet: {}
+const MAP = {
+    x: 0,
+    y: 0
+}
+const GunClass = {
+    common: Gun,
+    mg: MG,
+    flamethrower: Flamethrower,
+    matter: Matter
+}
+const BulletClass = {
+    common: Bullet,
+    cannonball: CannonBall,
+    cup: Cup
 }
 const bulletList = {};
-const AddBullet = {
-    normalBullet: function(bullet, x, y, angle){
-        const id = randomId();
-        bulletList[id] = new Bullet({
-            id,
-            x,
-            y,
-            angle,
-            bullet: bullet
-        });
-    },
-}
 //----------------------main------------------
 ctx.translate(0, 0);
+ctx.strokeStyle = 'violet';
 fetchAsset();
 const mainPlayer = new Player({char: 1});
 document.addEventListener('mousemove', MOUSE.OnMouseMove.bind(MOUSE));
@@ -42,17 +49,23 @@ document.addEventListener('keyup', mainPlayer.onKeyUp);
 document.addEventListener('mousedown', mainPlayer.onMouseDown);
 document.addEventListener('mouseup', mainPlayer.onMouseUp);
 document.addEventListener('contextmenu', (e)=>e.preventDefault());
-setInterval(update, 18);
+setInterval(update, 20);
 //--------------------------------------------
 
 function update(){
     ctx.clearRect(0, 0, 700, 700);
-    bulletUpdate();
+    DrawMap()
     mainPlayer.update();
-}
 
+    UpdateMapPos(mainPlayer.x, mainPlayer.y);
+}
 function fetchAsset(){
     //store image in cache for fast loading
+    //background
+    asset.background['img'] = new Image();
+    asset.background['img'].src = './asset/background/bg.png';
+    asset.background['w'] = asset.background['img'].width;
+    asset.background['h'] = asset.background['img'].height;
     //characters
     for(const char of CHAR.list){
         const assetData = {};
@@ -73,7 +86,8 @@ function fetchAsset(){
     for(const gun_name of GUN.list){
         const assetData = {
             pad: GUN[gun_name].pad,
-            bullet: GUN[gun_name].bullet
+            bullet: GUN[gun_name].bullet,
+            delay: GUN[gun_name].delay
         };
         for(const key in GUN.keys){
             assetData[key] = {};
@@ -94,29 +108,44 @@ function fetchAsset(){
         assetData['maxFrame'] = BULLET[bullet_name].maxFrame;
         assetData['maxLength'] = BULLET[bullet_name].maxLength;
         assetData['speed'] = BULLET[bullet_name].speed;
-        asset.bullet[bullet_name] = assetData;
+        asset.bullets[bullet_name] = assetData;
     }
 }
+function CannonBall(data){
+    Bullet.call(this, data);
+    this.checkMapCollision = ()=>{
+        this.angle+=Math.PI/60;
+        if(this.x < 0 || this.x > canvas.width){
+            this.spX = -this.spX;
+        }
+        if(this.y < 0 || this.y > canvas.height){
+            this.spY = -this.spY;
+        }
+    }
+}
+function Cup(data){
+    Bullet.call(this, data);
+    this.parapol = data.option.parapol;
+    this.maxLength = data.option.length;
+    this.totalTime = 1;
+    this.timePerMove = 0.02;
+    this.spX = this.maxLength * this.timePerMove * data.option.isLeft / this.totalTime;
+    this.calcParapol = (x)=>{
+        return -(this.parapol[0]*x*x + this.parapol[1]*x + this.parapol[2]);
+    }
+    this.updatePosition = ()=>{
+        this.x += this.spX;
+        this.y = this.calcParapol(this.x);
 
-function randomId(){
-    return Math.floor(Math.random()*(99999) + 1);
-}
-function bulletUpdate(){
-    for(const id in bulletList){
-        bulletList[id].update();
-    }
-}
-function ShootBullet(bullet, x, y, angle){
-    if(AddBullet[bullet]){
-        AddBullet[bullet](bullet, x, y, angle);
-    }
-    else{
-        AddBullet['normalBullet'](bullet, x, y, angle);
+        this.countLength += Math.abs(this.spX);
+        if(this.countLength >= this.maxLength){
+            this.removeSelf();
+        }
     }
 }
 function Bullet(data){
     this.id = data.id || null;
-    this.asset = asset.bullet[data.bullet] || asset.bullet['flamethrower'];
+    this.asset = asset.bullets[data.bulletName] || asset.bullets['flamethrower'];
     this.x = data.x || 0;
     this.y = data.y || 0;
     this.w = data.w || this.asset.w;
@@ -131,19 +160,23 @@ function Bullet(data){
     this.countFrame = 0;
     this.maxDelayFrame = 3;
     this.delayFrame = 0;
+    this.enableAnimation = this.maxFrame > 1 ? true : false;
     this.maxLength = this.asset.maxLength;
     this.countLength = 0;
     this.lengthPerUpdate = Math.round(Math.sqrt(this.spX * this.spX + this.spY * this.spY));
+    this.oldMapX = MAP.x;
+    this.oldMapY = MAP.y;
     this.update = ()=>{
         this.render();
         this.updateFrame();
         this.updatePosition();
+        this.checkMapCollision();
     }
     this.render = ()=>{
         ctx.save();
-        ctx.translate(this.x, this.y);
+        ctx.translate(this.x + MAP.x - this.oldMapX, this.y + MAP.y - this.oldMapY);
         ctx.rotate(this.angle);
-        if(this.maxFrame > 1){
+        if(this.enableAnimation){
             ctx.drawImage(this.asset.img, this.w * this.countFrame, 0, this.w, this.h, this.renderX, this.renderY, this.w, this.h);
         }
         else{
@@ -152,7 +185,7 @@ function Bullet(data){
         ctx.restore();
     }
     this.updateFrame = ()=>{
-        if(this.maxFrame > 1){
+        if(this.enableAnimation){
             this.delayFrame++;
             if(this.delayFrame > this.maxDelayFrame){
                 this.delayFrame = 0;
@@ -173,25 +206,168 @@ function Bullet(data){
     this.removeSelf = ()=>{
         delete bulletList[this.id];
     }
+    this.checkMapCollision = ()=>{
+        if(this.x < 0 || this.y < 0 || this.x > canvas.width || this.y > canvas.height){
+            console.log(2222);
+            this.removeSelf();
+        }
+    }
+}
+function Matter(data){
+    Gun.call(this, data);
+    this.shootHigh = 60;
+    const oldRender = this.render;
+    this.render = ()=>{
+        oldRender();
 
+        this.updateHeadPos();
+        ctx.beginPath();
+        ctx.moveTo(this.headX, this.headY);
+        ctx.quadraticCurveTo((MOUSE.x + this.headX)/2, (MOUSE.y + this.headY)/2 - 120, MOUSE.x, MOUSE.y);
+        ctx.stroke();
+    }
+    this.shoot = ()=>{
+        this.updateHeadPos();
+        const angle = Math.atan2(MOUSE.y - this.headY, MOUSE.x - this.headX);
+        const parapol = findParapol(
+            {
+                x: this.headX, 
+                y: this.headY
+            }, 
+            {
+                x: (this.headX + MOUSE.x)/2,
+                y: (this.headY + MOUSE.y)/2 - this.shootHigh
+            }, 
+            {
+                x: MOUSE.x,
+                y: MOUSE.y
+            }
+        );
+        const delX = MOUSE.x - this.headX;
+        const length = Math.sqrt(delX*delX);
+        CreateBullet(this.asset.bullet, this.headX , this.headY, angle, {parapol, length, isLeft: (MOUSE.x >= this.headX ? 1: -1)});
+    }
+}
+function Flamethrower(data){
+    Gun.call(this, data);
+    this.maxExpandAngle = Math.PI/4;
+    this.partAmount = 2;
+    this.partCount = 0;
+    this.middlePartIndex = this.partAmount/2;
+    this.oncePartAngle = this.maxExpandAngle / this.partAmount;
+    this.shoot = ()=>{
+        this.updateHeadPos();
+        const angle = Math.atan2(MOUSE.y - this.headY, MOUSE.x - this.headX);
+        const randomAngle = this.getRandomAngle(angle);
+        CreateBullet(this.asset.bullet, this.headX, this.headY, randomAngle);
+        this.updatePartCount();
+    }
+    this.getRandomAngle = (centerAngle)=>{
+        const delta = this.partCount - this.middlePartIndex;
+
+        const minAngle = centerAngle + this.oncePartAngle * delta;
+        const maxAngle = centerAngle + this.oncePartAngle * (delta + 1);
+
+        return randomInRangeAngle(maxAngle, minAngle);
+    }
+    this.updatePartCount = ()=>{
+        this.partCount++;
+        if(this.partCount >= this.partAmount)
+            this.partCount = 0;
+    }
+}
+function MG(data){
+    Gun.call(this, data);
+    this.deltaPosAngle = Math.PI/2;
+    this.distance = 3;
+    this.shoot = ()=>{
+        this.updateHeadPos();
+        const angle = Math.atan2(MOUSE.y - this.headY, MOUSE.x - this.headX);
+        const posX = Math.cos(this.deltaPosAngle + angle) * this.distance + this.headX;
+        const posY = Math.sin(this.deltaPosAngle + angle) * this.distance + this.headY;
+        CreateBullet(this.asset.bullet, posX, posY, angle);
+        this.deltaPosAngle = -this.deltaPosAngle;
+    }
+}
+function Gun(gunName){
+    this.asset = asset.guns[gunName];
+    this.x = -50;
+    this.y = -50;
+    this.headX = 0;
+    this.headY = 0;
+    this.curDirec = 'right';
+    this.setUpdatePos = (x, y, direc)=>{
+        this.x = x;
+        this.y = y;
+        this.curDirec = direc;
+    }
+    this.render = ()=>{
+        ctx.save();
+        if(this.curDirec.indexOf('left') != -1){
+            ctx.scale(-1, 1);
+        }
+        ctx.drawImage(this.asset[this.curDirec].img, this.x, this.y + MAP.y, this.asset[this.curDirec].w, this.asset[this.curDirec].h);
+        ctx.restore();
+    }
+    this.shoot = ()=>{
+        this.updateHeadPos();
+        const angle = Math.atan2(MOUSE.y - this.headY, MOUSE.x - this.headX);
+        CreateBullet(this.asset.bullet, this.headX, this.headY, angle);
+    }
+    this.updateHeadPos = ()=>{
+        let headX = Math.abs(this.x);
+        let headY = this.y;
+        switch(this.curDirec){
+            case 'up':
+                headX += this.asset[this.curDirec].w/2;
+                break;
+            case 'up-right':
+                headX += this.asset[this.curDirec].w;
+                break;
+            case 'right':
+                headX += this.asset[this.curDirec].w - 2;
+                headY += this.asset[this.curDirec].h/2 - 1;
+                break;
+            case 'down-right':
+                headX += this.asset[this.curDirec].w;
+                headY += this.asset[this.curDirec].h - 2;
+                break;
+            case 'down':
+                headX += this.asset[this.curDirec].w/2;
+                headY += this.asset[this.curDirec].h;
+                break;
+            case 'down-left':
+                headX -= this.asset[this.curDirec].w;
+                headY += this.asset[this.curDirec].h - 2;
+                break;
+            case 'left':
+                headX -= this.asset[this.curDirec].w - 2;
+                headY += this.asset[this.curDirec].h/2 - 1;
+                break;
+            case 'up-left':
+                headX -= this.asset[this.curDirec].w;
+                break;
+        }
+        this.headX = headX;
+        this.headY = headY + MAP.y;
+    }
 }
 function Player(data){
-    this.gun = data.gun || 0;
-    this.assetGun = asset.guns[GUN.list[this.gun]];
-    this.gunPos = {x: 0, y: 0};
-    this.char = data.char || 1;
-    this.assetChar = asset.chars[this.char];
-    this.w = data.w || this.assetChar.w;
-    this.h = data.h || this.assetChar.h; 
+    this.gunIndex = data.gunIndex || 3;
+    this.gun = SetGun(GUN.list[this.gunIndex]);
+    this.asset = asset.chars[data.char];
+    this.w = data.w || this.asset.w;
+    this.h = data.h || this.asset.h; 
     this.x = data.x || canvas.width/2;
     this.y = data.y || canvas.height/2;
     this.curDirec = 'right';
-    this.speed = 3;
+    this.speed = 2;
     this.countFrame = 0;
     this.delayFrame = 5;
     this.maxDelayFrame = 5;
     this.attack = false;
-    this.delayAttack = 3;
+    this.maxDelayAttack = this.gun.asset.delay;
+    this.delayAttack = this.maxDelayAttack;
     this.status = {
         left: false,
         right: false,
@@ -210,82 +386,49 @@ function Player(data){
             return;
         }
         if(this.attack){
-            this.delayAttack = 3;
-            const {x, y} = this.getBulletHeadPos();
-            const angle = Math.atan2(MOUSE.y - y, MOUSE.x - x);
-            ShootBullet(this.assetGun.bullet, x, y, angle);
+            this.delayAttack = this.maxDelayAttack;
+            this.gun.shoot();
         }
-    }
-    this.getBulletHeadPos = ()=>{
-        let headX = Math.abs(this.gunPos.x);
-        let headY = this.gunPos.y;
-        switch(this.curDirec){
-            case 'up':
-                headX += this.assetGun[this.curDirec].w/2;
-                break;
-            case 'up-right':
-                headX += this.assetGun[this.curDirec].w;
-                break;
-            case 'right':
-                headX += this.assetGun[this.curDirec].w;
-                headY += this.assetGun[this.curDirec].h/2;
-                break;
-            case 'down-right':
-                headX += this.assetGun[this.curDirec].w;
-                headY += this.assetGun[this.curDirec].h;
-                break;
-            case 'down':
-                headX += this.assetGun[this.curDirec].w/2;
-                headY += this.assetGun[this.curDirec].h;
-                break;
-            case 'down-left':
-                headX -= this.assetGun[this.curDirec].w;
-                headY += this.assetGun[this.curDirec].h;
-                break;
-            case 'left':
-                headX -= this.assetGun[this.curDirec].w;
-                headY += this.assetGun[this.curDirec].h/2;
-                break;
-            case 'up-left':
-                headX -= this.assetGun[this.curDirec].w;
-                break;
-        }
-        return {x: headX, y: headY};
     }
     this.render = ()=>{
         this.updateDirection();
-        ctx.save();
-        let charPosX = this.x;
+        let charPosX = this.x + MAP.x;
         if(this.curDirec.indexOf('left') != -1){
-            ctx.scale(-1, 1);
-            charPosX = -this.x - this.w;
+            charPosX = -this.x - this.w - MAP.x;
         }
-        let gunPosX = charPosX + this.w/2 + this.assetGun.pad.x;
-        let gunPosY = this.y + this.h/2 + this.assetGun.pad.y;
-        if(this.curDirec == 'up' || this.curDirec == 'down'){
-            gunPosX = charPosX + this.w / 2 - this.assetGun[this.curDirec].w/2;
-        }
+        this.updateGunPos(charPosX);
         if(this.curDirec.indexOf('up') > -1){
-            gunPosY = this.y + 4;
-            this.drawGun(gunPosX, gunPosY);
+            this.gun.render();
+            bulletUpdate();
             this.drawChar(charPosX);
         }
         else{
             this.drawChar(charPosX);
-            this.drawGun(gunPosX, gunPosY);
+            this.gun.render();
+            bulletUpdate();
         }
-        ctx.restore();
-        this.gunPos.x = gunPosX;
-        this.gunPos.y = gunPosY;
     }
     this.updateDirection = ()=>{
-        this.curDirec = DIRECTION[Math.floor((Math.atan2(MOUSE.y - this.y - this.h/2, MOUSE.x - this.x - this.w/2)*4/Math.PI  + 0.5))];
+        this.curDirec = DIRECTION[Math.floor((Math.atan2(MOUSE.y - this.y - this.h/2 - MAP.y, MOUSE.x - this.x - this.w/2 - MAP.x)*4/Math.PI  + 0.5))];
     }
     this.drawChar = (posX)=>{
-        ctx.drawImage(this.assetChar[this.curDirec].img, this.assetChar.w * this.countFrame, 0, this.assetChar.w, this.assetChar.h, posX, this.y, this.w, this.h);
+        ctx.save();
+        if(this.curDirec.indexOf('left') != -1){
+            ctx.scale(-1, 1);
+        }
+        ctx.drawImage(this.asset[this.curDirec].img, this.asset.w * this.countFrame, 0, this.asset.w, this.asset.h, posX, this.y + MAP.y, this.w, this.h);
+        ctx.restore();
     }
-    this.drawGun = (posX, posY)=>{
-        ctx.drawImage(this.assetGun[this.curDirec].img, posX, posY, this.assetGun[this.curDirec].w, this.assetGun[this.curDirec].h);
+    this.updateGunPos = (charPosX)=>{
+        let gunPosX = charPosX + this.w/2 + this.gun.asset.pad.x;
+        let gunPosY = this.y + this.h/2 + this.gun.asset.pad.y;
+        if(this.curDirec == 'up' || this.curDirec == 'down'){
+            gunPosX = charPosX + this.w / 2 - this.gun.asset[this.curDirec].w/2;
+        }
+        if(this.curDirec.indexOf('up') > -1){
+            gunPosY = this.y + 4;
+        }
+        this.gun.setUpdatePos(gunPosX, gunPosY, this.curDirec);
     }
     this.updateFrame = ()=>{
         if(this.delayFrame > 0){
@@ -330,11 +473,11 @@ function Player(data){
     }
     this.onKeyUp = (e)=>{
         if(e.code.indexOf('Digit') > -1){
-            this.gun = parseInt(e.code.slice(5));
-            if(this.gun >= GUN.list.length){
-                this.gun = 0;
+            let index = parseInt(e.code.slice(5));
+            if(index >= GUN.list.length){
+                index = 0;
             }
-            this.assetGun = asset.guns[GUN.list[this.gun]];
+            this.changeGun(index);
             return;
         }
         switch(e.code){
@@ -359,12 +502,18 @@ function Player(data){
                 break;
         }
     }
-    this.changeGun = ()=>{
-        this.gun++;
-        if(this.gun == GUN.list.length){
-            this.gun = 0;
+    this.changeGun = (index)=>{
+        if(index != undefined)
+            this.gunIndex = index;
+        else
+            this.gunIndex++;
+        if(this.gunIndex == GUN.list.length){
+            this.gunIndex = 0;
         }
-        this.assetGun = asset.guns[GUN.list[this.gun]];
+        delete this.gun;
+        this.gun = SetGun(GUN.list[this.gunIndex]);
+        this.maxDelayAttack = this.gun.asset.delay;
+        this.delayAttack = 0;
     }
     this.onMouseDown = (e)=>{
         if(e.buttons == 1)
@@ -375,4 +524,66 @@ function Player(data){
     this.onMouseUp = (e)=>{
         this.attack = false;
     }
+}
+function UpdateMapPos(x, y){
+    MAP.x = centerX - x;
+    MAP.y = centerY - y;
+
+    if(MAP.x > 0 )
+        MAP.x = 0;
+    else if(MAP.x < canvas.width - asset.background['w'])
+        MAP.x = canvas.width - asset.background['w'];
+
+    if(MAP.y > 0)
+        MAP.y = 0;
+    else if(MAP.y < canvas.height - asset.background['h'])
+        MAP.y = canvas.height - asset.background['h'];
+    
+}
+function DrawMap(){
+    ctx.drawImage(asset.background['img'], MAP.x, MAP.y);
+}
+function findParapol(p1, p2, p3){
+    const sq1 = p1.x*p1.x;
+    const sq2 = p2.x*p2.x;
+    const sq3 = p3.x*p3.x;
+
+    const det = (sq1 - sq3)*(p1.x - p2.x) - (sq1 - sq2)*(p1.x - p3.x);
+
+    const a = ((p1.x - p2.x)*p3.y + (p2.x - p3.x)*p1.y + (p3.x - p1.x)*p2.y)/det;
+    const b = ((p1.y - p2.y)*sq3 + (p2.y - p3.y)*sq1 + (p3.y - p1.y)*sq2)/det;
+    const c = ((p1.x*p2.y - p2.x*p1.y)*sq3 + (p2.x*p3.y - p3.x*p2.y)*sq1 + (p3.x*p1.y - p1.x*p3.y)*sq2)/det;
+
+    return [a, b, c];
+}
+function randomInRange(min, max){
+    return Math.floor(Math.random()*(max - min + 1) + min);
+}
+function randomInRangeAngle(min, max){
+    return Math.random()*(max - min) + min;
+}
+function randomId(){
+    return randomInRange(1, 99999);
+}
+function bulletUpdate(){
+    for(const id in bulletList){
+        bulletList[id].update();
+    }
+}
+function CreateBullet(bulletName, x, y, angle, option){
+    const id = randomId();
+    const data ={
+        id,
+        bulletName,
+        x,
+        y,
+        angle,
+        option
+    };
+    let bulletClassName = BulletClass[bulletName] ? bulletName : 'common';
+    bulletList[id] = new BulletClass[bulletClassName](data);
+}
+function SetGun(gunName){
+    const gunClassName = GunClass[gunName] ? gunName : 'common';
+    return new GunClass[gunClassName](gunName);
 }

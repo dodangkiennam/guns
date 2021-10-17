@@ -39,120 +39,129 @@ export const GUN = {
             x: -2,
             y: 0
         },
-        bullet: 'cannonball'
+        bullet: 'cannonball',
+        delay: 60
     },
     flamethrower: {
         pad: {
             x: -8,
             y: 0
         },
-        bullet: 'flamethrower'
+        bullet: 'flamethrower',
+        delay: 1
     },
     laser: {
         pad: {
             x: 2,
             y: 0
         },
-        bullet: 'd'
+        bullet: 'd',
+        delay: 6
     },
     matter: {
         pad: {
             x: 0,
             y: 0
         },
-        bullet: 'cup'
+        bullet: 'cup',
+        delay: 4
     },
     mg: {
         pad: {
             x: -5,
             y: 0
         },
-        bullet: 'c'
+        bullet: 'c',
+        delay: 2
     },
     pistol: {
         pad: {
             x: 2,
             y: 1
         },
-        bullet: 'b'
+        bullet: 'b',
+        delay: 3
     },
     rocket: {
         pad: {
             x: 1,
             y: 0
         },
-        bullet: 'rocket'
+        bullet: 'rocket',
+        delay: 50
     },
     shotgun: {
         pad: {
             x: -3,
             y: 0
         },
-        bullet: 'tomato'
+        bullet: 'tomato',
+        delay: 40
     },
     spazer: {
         pad: {
             x: -1,
             y: 0
         },
-        bullet: 'onion'
+        bullet: 'onion',
+        delay: 40
     }
 }
 export const BULLET  ={
     list: ['flamethrower', 'onion', 'tomato', 'cat', 'cup', 'a', 'b', 'c', 'd', 'rocket', 'cannonball'],
     flamethrower: {
         maxFrame: 2,
-        maxLength: 80,
-        speed: 2
+        maxLength: 90,
+        speed: 2.4,
     },
     onion: {
         maxFrame: 6,
         maxLength: 100,
-        speed: 5
+        speed: 5,
     },
     tomato: {
         maxFrame: 6,
         maxLength: 100,
-        speed: 5
+        speed: 5,
     },
     cat: {
         maxFrame: 1,
         maxLength: 100,
-        speed: 4
+        speed: 4,
     },
     cup: {
         maxFrame: 1,
         maxLength: 100,
-        speed: 4
+        speed: 4,
     },
     a: {
         maxFrame: 1,
         maxLength: 100,
-        speed: 2
+        speed: 2,
     },
     b: {
         maxFrame: 1,
         maxLength: 170,
-        speed: 4
+        speed: 4,
     },
     c: {
         maxFrame: 1,
-        maxLength: 150,
-        speed: 4
+        maxLength: 180,
+        speed: 6,
     },
     d: {
         maxFrame: 1,
-        maxLength: 200,
-        speed: 5
+        maxLength: 220,
+        speed: 7,
     },
     rocket: {
         maxFrame: 1,
         maxLength: 220,
-        speed: 3
+        speed: 3,
     },
     cannonball: {
         maxFrame: 1,
-        maxLength: 300,
-        speed: 3
+        maxLength: 800,
+        speed: 4,
     }
 }
