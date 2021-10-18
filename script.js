@@ -49,9 +49,14 @@ document.addEventListener('keyup', mainPlayer.onKeyUp);
 document.addEventListener('mousedown', mainPlayer.onMouseDown);
 document.addEventListener('mouseup', mainPlayer.onMouseUp);
 document.addEventListener('contextmenu', (e)=>e.preventDefault());
-setTimeout(()=>{
-    setInterval(update, 20);
-}, 500);
+setInterval(update, 20);
+
+window.onload = function() {
+    if(!window.location.hash) {
+        window.location = window.location + '#loaded';
+        window.location.reload();
+    }
+}
 //--------------------------------------------
 
 function update(){
