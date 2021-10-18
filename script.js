@@ -39,9 +39,9 @@ const BulletClass = {
 }
 const bulletList = {};
 //----------------------main------------------
+fetchAsset();
 ctx.translate(0, 0);
 ctx.strokeStyle = 'violet';
-fetchAsset();
 const mainPlayer = new Player({char: 1});
 document.addEventListener('mousemove', MOUSE.OnMouseMove.bind(MOUSE));
 document.addEventListener('keydown', mainPlayer.onKeyDown);
@@ -49,7 +49,9 @@ document.addEventListener('keyup', mainPlayer.onKeyUp);
 document.addEventListener('mousedown', mainPlayer.onMouseDown);
 document.addEventListener('mouseup', mainPlayer.onMouseUp);
 document.addEventListener('contextmenu', (e)=>e.preventDefault());
-setInterval(update, 20);
+setTimeout(()=>{
+    setInterval(update, 20);
+}, 500);
 //--------------------------------------------
 
 function update(){
@@ -115,10 +117,10 @@ function CannonBall(data){
     Bullet.call(this, data);
     this.checkMapCollision = ()=>{
         this.angle+=Math.PI/60;
-        if(this.x < 0 || this.x > canvas.width){
+        if(this.x - this.oldMapX < 0 || this.x - this.oldMapX > asset.background['w']){
             this.spX = -this.spX;
         }
-        if(this.y < 0 || this.y > canvas.height){
+        if(this.y - this.oldMapY < 0 || this.y - this.oldMapY > asset.background['h']){
             this.spY = -this.spY;
         }
     }
@@ -142,6 +144,7 @@ function Cup(data){
             this.removeSelf();
         }
     }
+    this.checkMapCollision = ()=>{}
 }
 function Bullet(data){
     this.id = data.id || null;
@@ -353,13 +356,14 @@ function Gun(gunName){
     }
 }
 function Player(data){
-    this.gunIndex = data.gunIndex || 3;
+    this.gunIndex = data.gunIndex || 0;
     this.gun = SetGun(GUN.list[this.gunIndex]);
     this.asset = asset.chars[data.char];
     this.w = data.w || this.asset.w;
     this.h = data.h || this.asset.h; 
-    this.x = data.x || canvas.width/2;
-    this.y = data.y || canvas.height/2;
+    this.x = data.x || 550;
+    this.y = data.y || 550;
+    this.hp = data.hp || 20;
     this.curDirec = 'right';
     this.speed = 2;
     this.countFrame = 0;
