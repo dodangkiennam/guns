@@ -63,8 +63,8 @@ export const GUN = {
             x: 0,
             y: 0
         },
-        bullet: 'cup',
-        delay: 4
+        bullet: ['cup', 'cat', 'microwave'],
+        delay: 15
     },
     mg: {
         pad: {
@@ -108,7 +108,7 @@ export const GUN = {
     }
 }
 export const BULLET  ={
-    list: ['flamethrower', 'onion', 'tomato', 'cat', 'cup', 'a', 'b', 'c', 'd', 'rocket', 'cannonball'],
+    list: ['flamethrower', 'onion', 'tomato', 'cat', 'cup', 'a', 'b', 'c', 'd', 'rocket', 'cannonball', 'microwave'],
     flamethrower: {
         maxFrame: 2,
         maxLength: 90,
@@ -130,6 +130,11 @@ export const BULLET  ={
         speed: 4,
     },
     cup: {
+        maxFrame: 1,
+        maxLength: 100,
+        speed: 4,
+    },
+    microwave: {
         maxFrame: 1,
         maxLength: 100,
         speed: 4,
@@ -164,4 +169,35 @@ export const BULLET  ={
         maxLength: 800,
         speed: 4,
     }
+}
+export const ENEMY = {
+    list: ['slime', 'spirit', 'flam'],
+    state: ['idle', 'hit'],
+    slime: {
+        idleMaxFrame: 4,
+        hitMaxFrame: 8,
+        speed: 1,
+        dame: 6,
+        delayAttack: 0,
+        maxHp: 16
+    },
+    spirit: {
+        idleMaxFrame: 5,
+        hitMaxFrame: 3,
+        speed: 1,
+        dame: 2,
+        delayAttack: 40,
+        maxHp: 50
+    },
+    flam: {
+        idleMaxFrame: 5,
+        hitMaxFrame: 3,
+        speed: 2,
+        dame: 4,
+        delayAttack: 30,
+        maxHp: 26
+    }
+}
+export const GAMEOBJECT = {
+    list: ['base']
 }
