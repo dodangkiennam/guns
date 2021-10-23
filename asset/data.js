@@ -88,7 +88,7 @@ export const GUN = {
             y: 0
         },
         bullet: 'rocket',
-        delay: 50
+        delay: 50,
     },
     shotgun: {
         pad: {
@@ -173,13 +173,15 @@ export const BULLET  ={
         maxFrame: 1,
         maxLength: 220,
         speed: 3,
-        effectName: 'explosion3'
+        effectName: 'explosion3',
+        dame: 500
     },
     cannonball: {
         maxFrame: 1,
         maxLength: 800,
         speed: 4,
-        effectName: 'explosion2'
+        effectName: 'explosion2',
+        dame: 50
     }
 }
 export const ENEMY = {

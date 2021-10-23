@@ -1169,7 +1169,7 @@ function randEnemy(){
     if(gameCountTime % 50 == 0){
         createEnemy(ENEMY.list[0], base.x, base.y);
     }
-    if(gameCountTime % 1000 == 0){
+    if(gameCountTime % 150 == 0){
         let randBoss = randomInRange(1, 2);
         createEnemy(ENEMY.list[randBoss], base.x, base.y);
         gameCountTime = 0;
