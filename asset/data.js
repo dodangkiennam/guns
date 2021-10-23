@@ -191,7 +191,7 @@ export const ENEMY = {
         speed: 3,
         dame: 6,
         delayAttack: 0,
-        maxHp: 16
+        maxHp: 500
     },
     spirit: {
         idleMaxFrame: 5,
@@ -199,15 +199,15 @@ export const ENEMY = {
         speed: 4,
         dame: 2,
         delayAttack: 40,
-        maxHp: 100
+        maxHp: 800
     },
     flam: {
         idleMaxFrame: 5,
         hitMaxFrame: 3,
-        speed: 2,
+        speed: 5,
         dame: 4,
         delayAttack: 30,
-        maxHp: 26
+        maxHp: 750
     }
 }
 export const GAMEOBJECT = {

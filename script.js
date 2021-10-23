@@ -914,8 +914,8 @@ function Player(data){
     this.asset = asset.chars[data.char];
     this.w = data.w || this.asset.w;
     this.h = data.h || this.asset.h; 
-    this.x = data.x || 600;
-    this.y = data.y || 600;
+    this.x = data.x || 640;
+    this.y = data.y || 640;
     this.maxHp = 20;
     this.hp = this.maxHp;
     this.curDirec = 'right';
@@ -1167,7 +1167,7 @@ function createBase(x, y){
 }
 function randEnemy(){
     if(gameCountTime % 50 == 0){
-        createEnemy(ENEMY.list[1], base.x, base.y);
+        createEnemy(ENEMY.list[0], base.x, base.y);
     }
     if(gameCountTime % 1000 == 0){
         let randBoss = randomInRange(1, 2);
