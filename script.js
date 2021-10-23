@@ -4,7 +4,9 @@ import {
     GUN,
     BULLET,
     ENEMY,
-    GAMEOBJECT
+    GAMEOBJECT,
+    EFFECT,
+    TOWER
 } from './asset/data.js';
 const canvas = document.getElementById('cvs');
 const ctx = canvas.getContext('2d');
@@ -18,7 +20,9 @@ const asset = {
     guns: {},
     bullets: {},
     enemies: {},
-    objects: {}
+    objects: {},
+    effects: {},
+    towers: {}
 };
 const MOUSE = {
     x: 175,
@@ -43,14 +47,22 @@ const BulletClass = {
     cannonball: CannonBall,
     cup: FlyingBullet,
     cat: FlyingBullet,
-    microwave: FlyingBullet
+    microwave: FlyingBullet,
+    rocket: Rocket
 };
 const EnemyClass = {
     common: Enemy,
     slime: Slime
 };
+const TowerClass = {
+    common: Tower,
+    flamethrower: FlameTower,
+    mg: MGTower
+};
 const bulletList = {};
 const enemyList = {};
+const effectList = {};
+const towerList = {};
 let gameCountTime = 1;
 //----------------------main------------------
 fetchAsset();
@@ -60,6 +72,10 @@ ctx.strokeStyle = 'red';
 ctx.fillStyle = 'red';
 const mainPlayer = new Player({char: 1});
 const base = createBase(640, 640);
+createTower(4, 580, 580);
+createTower(6, 700, 580);
+createTower(0, 580, 700);
+createTower(1, 700, 700);
 document.addEventListener('mousemove', MOUSE.OnMouseMove.bind(MOUSE));
 document.addEventListener('keydown', mainPlayer.onKeyDown);
 document.addEventListener('keyup', mainPlayer.onKeyUp);
@@ -71,8 +87,11 @@ setInterval(update, 20);
 function update(){
     drawMap()
     base.update();
-    enemyUpdate();
     mainPlayer.update();
+    listUpdate(enemyList);
+    listUpdate(effectList);
+    listUpdate(towerList);
+    listUpdate(bulletList);
     updateMapPos(mainPlayer.x, mainPlayer.y);
     randEnemy();
 }
@@ -121,7 +140,8 @@ function fetchAsset(){
             maxFrame: BULLET[bullet_name].maxFrame,
             maxLength: BULLET[bullet_name].maxLength,
             speed: BULLET[bullet_name].speed,
-            dame: BULLET[bullet_name].dame || 1
+            dame: BULLET[bullet_name].dame || 10,
+            effectName: BULLET[bullet_name].effectName || 'none'
         };
         assetData['img'] = new Image();
         assetData['img'].src = `./asset/bullet/${bullet_name}.png`;
@@ -160,8 +180,76 @@ function fetchAsset(){
             assetData['maxFrame'] = GAMEOBJECT[object_name].maxFrame;
         asset.objects[object_name] = assetData;
     }
+    //effect
+    for(const effect_name of EFFECT.list){
+        const assetData = {
+            maxFrame: EFFECT[effect_name].maxFrame
+        };
+        assetData['img'] = new Image();
+        assetData['img'].src = `./asset/effects/${effect_name}.png`;
+        assetData['w'] = assetData['img'].width / assetData.maxFrame;
+        assetData['h'] = assetData['img'].height;
+        asset.effects[effect_name] = assetData;
+    }
+    //towers
+    for(const tower_name of TOWER.list){
+        const assetData = {
+            bulletName: GUN[tower_name].bullet
+        };
+        for(let level = 1; level <= 3; level++){
+            const levelAsset = {
+                delayAttack: GUN[tower_name].delay,
+            };
+            let isGetOffset = false;
+            for(const key in TOWER.keys){
+                levelAsset[key] = {};
+                levelAsset[key].img = new Image();
+                levelAsset[key].img.src = `./asset/towers/${tower_name}/${level}_${TOWER.keys[key]}.png`;
+                if(!isGetOffset){
+                    levelAsset['w'] = levelAsset[key].img.width;
+                    levelAsset['h'] = levelAsset[key].img.height;
+                    isGetOffset = true;
+                }
+            }   
+            assetData[`${level}`] = levelAsset;
+        }
+        asset.towers[tower_name] = assetData;
+    }
 }
 //bullet classes
+function Rocket(data){
+    Bullet.call(this, data);
+    this.getExplosionCollider = ()=>{
+        return{
+            x: this.x - this.w*2,
+            y: this.y - this.w*2,
+            w: this.w*4,
+            h: this.w*4
+        }
+    }
+    this.checkCollision = ()=>{
+        for(const id in enemyList){
+            const isCollided = rectCollision(enemyList[id].getBoxCollider(), this.getBoxCollider());
+            if(isCollided){
+                this.removeSelf();
+                break;
+            }
+        }
+        if(rectCollision(base.getBoxCollider(), this.getBoxCollider()) == true){
+            this.removeSelf();
+        }
+    }
+    this.removeSelf = ()=>{
+        for(const id in enemyList){
+            const isCollided = rectCollision(enemyList[id].getBoxCollider(), this.getExplosionCollider());
+            if(isCollided){
+                enemyList[id].hit(this.dame);
+            }
+        }
+        this.playEffect();
+        delete bulletList[this.id];
+    }
+}
 function CannonBall(data){
     Bullet.call(this, data);
     this.checkMapCollision = ()=>{
@@ -177,21 +265,26 @@ function CannonBall(data){
         for(const id in enemyList){
             const isCollided = rectCollision(enemyList[id].getBoxCollider(), this.getBoxCollider());
             if(isCollided){
+                this.playEffect();
                 enemyList[id].hit(this.dame);
                 return true;
             }
         }
+        if(rectCollision(base.getBoxCollider(), this.getBoxCollider()) == true)
+            return true;
         return false;
     }
     this.updatePosition = ()=>{
         let isCollided = false;
         this.x += this.spX;
         if(this.checkCollision()){
+            this.playEffect();
             this.spX = -this.spX;
             isCollided = true;
         }
         this.y += this.spY;
         if(!isCollided && this.checkCollision()){
+            this.playEffect();
             this.spY = -this.spY;
         }
         this.countLength += this.lengthPerUpdate;
@@ -219,13 +312,12 @@ function FlyingBullet(data){
     this.updatePosition = ()=>{
         this.x += this.spX;
         this.y = this.calcParapol(this.x);
-
         this.countLength += Math.abs(this.spX);
         if(this.countLength >= this.maxLength){
-            this.removeSelf();
+            this.playEffect();
             this.checkCollision();
+            this.removeSelf();
         }
-
         this.angle += Math.PI/60;
     }
     this.checkMapCollision = ()=>{}
@@ -298,13 +390,19 @@ function Bullet(data){
             console.log('bullet collide map');
             this.removeSelf();
         }
+        else if(rectCollision(this.getBoxCollider(), base.getBoxCollider()) == true){
+            this.playEffect();
+            this.removeSelf();
+        }
     }
     this.checkCollision = ()=>{
         for(const id in enemyList){
             const isCollided = rectCollision(enemyList[id].getBoxCollider(), this.getBoxCollider());
             if(isCollided){
                 enemyList[id].hit(this.dame);
+                this.playEffect();
                 this.removeSelf();
+                break;
             }
         }
     }
@@ -314,6 +412,11 @@ function Bullet(data){
             y: this.y - this.h/2,
             w: this.w,
             h: this.h
+        }
+    }
+    this.playEffect = ()=>{
+        if(this.asset.effectName != 'none'){
+            createEffect(this.asset.effectName, this.x, this.y);
         }
     }
 }
@@ -402,7 +505,7 @@ function Gun(gunName){
         if(this.curDirec.indexOf('left') != -1){
             ctx.scale(-1, 1);
         }
-        ctx.drawImage(this.asset[this.curDirec].img, this.x, this.y, this.asset[this.curDirec].w, this.asset[this.curDirec].h);
+        ctx.drawImage(this.asset[this.curDirec].img, this.x, this.y);
         ctx.restore();
     }
     this.shoot = ()=>{
@@ -452,7 +555,7 @@ function Gun(gunName){
 function Base(data){
     GameObject.call(this, data);
     this.hpBarWidth = HP_W * 2;
-    this.maxHp = 100;
+    this.maxHp = 1000;
     this.hp = this.maxHp;
     this.update = ()=>{
         this.render();
@@ -486,7 +589,7 @@ function GameObject(data){
     this.render = ()=>{
         const posX = this.x - this.w/2 + MAP.x;
         const posY = this.y - this.h/2 + MAP.y;
-        ctx.drawImage(this.img, posX, posY, this.w, this.h);
+        ctx.drawImage(this.img, posX, posY);
     }
     this.getBoxCollider = ()=>{
         return{
@@ -497,12 +600,51 @@ function GameObject(data){
         }
     }
 }
+//effect class
+function Effect(data){
+    this.id = data.id;
+    this.asset = asset.effects[data.effectName];
+    this.w = this.asset.w || 0;
+    this.h = this.asset.h || 0;
+    this.x = data.x || 0;
+    this.y = data.y || 0;
+    this.maxDelayFrame = 3;
+    this.countDelayFrame = this.maxDelayFrame;
+    this.maxFrame = this.asset.maxFrame;
+    this.countFrame = 0;
+    this.render = ()=>{
+        const posX = this.x + MAP.x - this.w/2;
+        const posY = this.y + MAP.y - this.h/2;
+        ctx.drawImage(this.asset.img, this.w * this.countFrame, 0, this.w, this.h, posX, posY, this.w, this.h);
+    }
+    this.update = ()=>{
+        this.render();
+        this.updateFrame();
+    }
+    this.updateFrame = ()=>{
+        if(this.countDelayFrame > 0){
+            this.countDelayFrame--;
+        }        
+        else{
+            this.countDelayFrame = this.maxDelayFrame;
+            this.countFrame++;
+            if(this.countFrame >= this.maxFrame){
+                this.removeSelf();
+            }
+        }
+        
+    }
+    this.removeSelf = ()=>{
+        delete effectList[this.id];
+    }
+}
 //enemies class
 function Slime(data){
     Enemy.call(this, data);
     this.hitBase = ()=>{
         if(this.countFrame == this.asset[this.state].maxFrame - 1){
             base.hit(this.dame);
+            createEffect(EFFECT.list[2], this.x, this.y);
             this.removeSelf();
         }
     }
@@ -614,9 +756,160 @@ function Enemy(data){
         }
     }
 }
+//towers class
+function MGTower(data){
+    Tower.call(this, data);
+    this.deltaPosAngle = Math.PI/2;
+    this.distance = 3;
+    this.shoot = (id)=>{
+        this.updateHeadPos();
+        const {x, y} = enemyList[id];
+        const angle = Math.atan2(y - this.headY, x - this.headX);
+        const posX = Math.cos(this.deltaPosAngle + angle) * this.distance + this.headX;
+        const posY = Math.sin(this.deltaPosAngle + angle) * this.distance + this.headY;
+        createBullet(this.bulletName, posX, posY, angle);
+        this.updateDirection(x, y);
+        this.deltaPosAngle = -this.deltaPosAngle;
+    }
+}
+function FlameTower(data){
+    Tower.call(this, data);
+    this.maxExpandAngle = Math.PI/4;
+    this.partAmount = 2;
+    this.partCount = 0;
+    this.middlePartIndex = this.partAmount/2;
+    this.oncePartAngle = this.maxExpandAngle / this.partAmount;
+    this.shoot = (id)=>{
+        this.updateHeadPos();
+        const {x, y} = enemyList[id];
+        const angle = Math.atan2(y - this.headX, x - this.headY);
+        const randomAngle = this.getRandomAngle(angle);
+        createBullet(this.bulletName, this.headX, this.headY, randomAngle);
+        this.updateDirection(x, y);
+        this.updatePartCount();
+    }
+    this.getRandomAngle = (centerAngle)=>{
+        const delta = this.partCount - this.middlePartIndex;
+
+        const minAngle = centerAngle + this.oncePartAngle * delta;
+        const maxAngle = centerAngle + this.oncePartAngle * (delta + 1);
+
+        return randomInRangeAngle(maxAngle, minAngle);
+    }
+    this.updatePartCount = ()=>{
+        this.partCount++;
+        if(this.partCount >= this.partAmount)
+            this.partCount = 0;
+    }
+}
+function Tower(data){
+    this.id = data.id;
+    this.asset = asset.towers[data.towerName][1];
+    this.x = data.x; 
+    this.y = data.y;
+    this.w = this.asset.w;
+    this.h = this.asset.h;
+    this.headX = 0;
+    this.headY = 0;
+    this.curDirec = 'down';
+    this.bulletName = asset.towers[data.towerName].bulletName;
+    this.maxDelayAttack = this.asset.delayAttack;
+    this.countDelayAttack = this.maxDelayAttack;
+    this.attack = false;
+    this.update = ()=>{
+        this.render();
+        this.shootCharging();
+        this.findTarget();
+    }
+    this.render = ()=>{
+        const posX = this.x + MAP.x - this.w/2;
+        const posY = this.y + MAP.y - this.h/2;
+        ctx.drawImage(this.asset[this.curDirec].img, posX, posY);
+    }
+    this.shoot = (id)=>{
+        this.updateHeadPos();
+        const {x, y} = enemyList[id];
+        const angle = Math.atan2(y - this.headY, x - this.headX);
+        createBullet(this.bulletName, this.headX, this.headY, angle);
+        this.updateDirection(x, y);
+    }
+    this.findTarget = ()=>{
+        if(this.countDelayAttack > 0)
+            return;
+        let minDistance = 100;
+        let minId = -1;
+        for(const id in enemyList){
+            const distance = getDistance(
+                {
+                    x: this.x,
+                    y: this.y
+                },
+                {
+                    x: enemyList[id].x,
+                    y: enemyList[id].y
+                }
+            )
+            if(distance < minDistance){
+                minId = id;
+                minDistance = distance;
+            }
+        }
+        // console.log(this.x - MAP.x);
+        if(minDistance < 100){
+            this.shoot(minId);
+        }
+    }
+    this.updateHeadPos = ()=>{
+        let headX = this.x;
+        let headY = this.y;
+        switch(this.curDirec){
+            case 'up':
+                headY -= this.h/2;
+                break;
+            case 'up-right':
+                headX += this.w/2;
+                headY += this.h/2;
+                break;
+            case 'right':
+                headX += this.w/2;
+                headY -= 5;
+                break;
+            case 'down-right':
+                headX += this.w/2;
+                headY -= 3;
+                break;
+            case 'down':
+                headY -= 3;
+                break;
+            case 'down-left':
+                headX -= this.w/2;
+                headY -= 3;
+                break;
+            case 'left':
+                headX -= this.w/2;
+                headY -= 5;
+                break;
+            case 'up-left':
+                headX -= this.w/2;
+                headY -= this.h/2;
+                break;
+        }
+        this.headX = headX;
+        this.headY = headY;
+    }
+    this.shootCharging = ()=>{
+        if(this.countDelayAttack > 0){
+            this.countDelayAttack--;
+        }
+    }
+    this.updateDirection = (x, y)=>{
+        this.curDirec = DIRECTION[Math.floor((Math.atan2(y - this.y - this.h/2, x - this.x - this.w/2)*4/Math.PI  + 0.5))];
+        this.countDelayAttack = this.maxDelayAttack;
+    }
+}
 //player class
 function Player(data){
-    this.gunIndex = data.gunIndex || 0;
+    this.gunIndex = data.gunIndex || 6;
     this.gun = setGun(GUN.list[this.gunIndex]);
     this.asset = asset.chars[data.char];
     this.w = data.w || this.asset.w;
@@ -666,13 +959,11 @@ function Player(data){
         this.updateGunPos(charPosX, charPosY);
         if(this.curDirec.indexOf('up') > -1){
             this.gun.render();
-            bulletUpdate();
             this.drawChar(charPosX, charPosY);
         }
         else{
             this.drawChar(charPosX, charPosY);
             this.gun.render();
-            bulletUpdate();
         }
         this.drawHpBar();
     }
@@ -810,6 +1101,11 @@ function Player(data){
         }
     }
 }
+function getDistance(o1, o2){
+    const delX = o1.x - o2.x;
+    const delY = o1.y - o2.y;
+    return Math.sqrt(delX*delX + delY*delY);
+}
 function rectCollision(o1, o2){
     if(o1.x < o2.x + o2.w && o1.y < o2.y + o2.h && o2.x < o1.x + o1.w && o2.y < o1.y + o1.h){
         return true;
@@ -857,14 +1153,9 @@ function randomInRangeAngle(min, max){
 function randomId(){
     return randomInRange(1, 99999);
 }
-function enemyUpdate(){
-    for(const id in enemyList){
-        enemyList[id].update();
-    }
-}
-function bulletUpdate(){
-    for(const id in bulletList){
-        bulletList[id].update();
+function listUpdate(list){
+    for(const id in list){
+        list[id].update();
     }
 }
 function createBase(x, y){
@@ -876,14 +1167,34 @@ function createBase(x, y){
 }
 function randEnemy(){
     if(gameCountTime % 50 == 0){
-        createEnemy(ENEMY.list[0], base.x, base.y);
+        createEnemy(ENEMY.list[1], base.x, base.y);
     }
-    else if(gameCountTime % 501 == 0){
+    if(gameCountTime % 1000 == 0){
         let randBoss = randomInRange(1, 2);
         createEnemy(ENEMY.list[randBoss], base.x, base.y);
         gameCountTime = 0;
     }
     gameCountTime++;
+}
+function createTower(index, x, y){
+    const id = randomId();
+    const data = {
+        id,
+        x,
+        y,
+        towerName: TOWER.list[index]
+    };
+    let towerClassName = TowerClass[TOWER.list[index]] ? TOWER.list[index] : 'common';
+    towerList[id] = new TowerClass[towerClassName](data);
+}
+function createEffect(effectName, x, y){
+    const id = randomId();
+    effectList[id] = new Effect({
+        id,
+        x,
+        y,
+        effectName
+    });
 }
 function createEnemy(enemyName, pX, pY){
     const id = randomId();

@@ -113,61 +113,73 @@ export const BULLET  ={
         maxFrame: 2,
         maxLength: 90,
         speed: 2.4,
+        effectName: 'explosion1'
     },
     onion: {
         maxFrame: 6,
         maxLength: 100,
         speed: 5,
+        effectName: 'explosion2'
     },
     tomato: {
         maxFrame: 6,
         maxLength: 100,
         speed: 5,
+        effectName: 'explosion2'
     },
     cat: {
         maxFrame: 1,
         maxLength: 100,
         speed: 4,
+        effectName: 'explosion2'
     },
     cup: {
         maxFrame: 1,
         maxLength: 100,
         speed: 4,
+        effectName: 'explosion2'
     },
     microwave: {
         maxFrame: 1,
         maxLength: 100,
         speed: 4,
+        effectName: 'explosion2'
     },
     a: {
         maxFrame: 1,
         maxLength: 100,
         speed: 2,
+        effectName: 'explosion2'
     },
     b: {
         maxFrame: 1,
         maxLength: 170,
         speed: 4,
+        effectName: 'explosion2'
     },
     c: {
         maxFrame: 1,
         maxLength: 180,
         speed: 6,
+        effectName: 'explosion2'
     },
     d: {
         maxFrame: 1,
         maxLength: 220,
         speed: 7,
+        effectName: 'explosion2'
     },
     rocket: {
         maxFrame: 1,
         maxLength: 220,
         speed: 3,
+        effectName: 'explosion3'
     },
     cannonball: {
         maxFrame: 1,
         maxLength: 800,
         speed: 4,
+        effectName: 'explosion2'
     }
 }
 export const ENEMY = {
@@ -176,7 +188,7 @@ export const ENEMY = {
     slime: {
         idleMaxFrame: 4,
         hitMaxFrame: 8,
-        speed: 1,
+        speed: 3,
         dame: 6,
         delayAttack: 0,
         maxHp: 16
@@ -184,10 +196,10 @@ export const ENEMY = {
     spirit: {
         idleMaxFrame: 5,
         hitMaxFrame: 3,
-        speed: 1,
+        speed: 4,
         dame: 2,
         delayAttack: 40,
-        maxHp: 50
+        maxHp: 500
     },
     flam: {
         idleMaxFrame: 5,
@@ -200,4 +212,29 @@ export const ENEMY = {
 }
 export const GAMEOBJECT = {
     list: ['base']
+}
+export const EFFECT = {
+    list: ['explosion1', 'explosion2', 'explosion3'],
+    explosion1: {
+        maxFrame: 8
+    },
+    explosion2: {
+        maxFrame: 3
+    },
+    explosion3: {
+        maxFrame: 3
+    }
+}
+export const TOWER = {
+    keys: {
+        'up': 'up',
+        'down': 'down',
+        'left': 'left',
+        'right': 'right',
+        'up-left': 'leftup',
+        'up-right': 'rightup',
+        'down-left': 'leftdown',
+        'down-right': 'rightdown',
+    },
+    list: ['cannon', 'flamethrower', 'laser', 'matter', 'mg', 'pistol', 'rocket', 'shotgun', 'spazer'],
 }
