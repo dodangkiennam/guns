@@ -199,7 +199,7 @@ export const ENEMY = {
         speed: 4,
         dame: 2,
         delayAttack: 40,
-        maxHp: 500
+        maxHp: 100
     },
     flam: {
         idleMaxFrame: 5,
